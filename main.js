@@ -292,6 +292,7 @@ function removeAllEvents(){
         newGameButtonOnDeadScreen.innerHTML = '<h3>New game<h3>';
         newGameButtonOnDeadScreen.addEventListener('click',()=>{
             location.reload()
+
     })
 }
 function ShowLegalMoves(){

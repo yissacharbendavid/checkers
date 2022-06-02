@@ -1,4 +1,7 @@
 *{box-sizing: border-box;}
+body{
+    background-color: rgb(242, 231, 216);
+}
 .board{
     margin: 2vh 10vh;
     min-height: 80vh;
@@ -113,7 +116,7 @@
     margin: auto;
 }
 .other_player_turn{
-    color: white;
+    color: rgb(242, 231, 216);
 }
 .white_king{
     background-image:url("crown_for_white.png") ;
