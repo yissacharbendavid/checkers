@@ -208,6 +208,8 @@ for(square of HTMLsquares){ // move event listener
             if(selectedPiece.move(parseInt(event.currentTarget.id))){
                 if(!isInEatingRow){
                     isWhiteTurn = !isWhiteTurn;
+                    whitesTurnShower.className = isWhiteTurn? "":"other_player_turn";
+                    blacksTurnSower.className = !isWhiteTurn? "":"other_player_turn"
                 }
                 drawBoard();
                 if(whitesCount === 0||blacksCount === 0){
