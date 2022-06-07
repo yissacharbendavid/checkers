@@ -1,4 +1,4 @@
-const board = document.getElementById('board');
+const HTMLboard = document.getElementById('board');
 const modalBackground = document.getElementById('modal_background');
 const endGameModal = document.getElementById('end_game_modal');
 const resignButton = document.getElementById('resign');
@@ -9,12 +9,157 @@ const closeButton = document.getElementById('close_button');
 const askTieButton = document.getElementById('ask_tie_button');
 const whitesTurnShower = document.getElementById('whites_turn');
 const blacksTurnSower = document.getElementById('blacks_turn');
-approveTie = document.getElementById('approve_tie');
-denyTie = document.getElementById('deny_tie');
+const approveTie = document.getElementById('approve_tie');
+const denyTie = document.getElementById('deny_tie');
 let isWhiteTurn = true;
 let isGameEnded = false;
 let isInEatingRow = false;
 let selectedPiece;
+let whitesCount = 12;
+let blacksCount = 12;
+const board = [];
+const Piece = function(isEmpty,isWhite){
+    this.isEmpty = isEmpty;
+    this.isWhite = isWhite;
+    this.isKing = false;
+    this.isFocused = false;
+    this.isLegalMove = false;
+    this.isCanEat = false;
+    this.isAte = false;
+    this.isCanEatCheck = ()=>{
+        const pieceIndex = board.indexOf(this);
+        const optionalEatIndexes=[pieceIndex-14,pieceIndex+14,pieceIndex-18,pieceIndex+18]
+        for(index of optionalEatIndexes){
+            if(index<64 && index>0 && this.isMoveLegal(index)){
+                return true;
+            }
+        }
+        return false;
+    }
+    this.toHTMLclass = ()=>{
+        if(this.isEmpty){
+            let message = "empty_piece"+this.isLegalMove?' legal_move':'';
+            return 'piece empty_piece'+ (this.isLegalMove?' legal_move':'');
+        }
+        else{
+            return 'piece ' + (this.isWhite?'white_piece':'black_piece') + (this.isKing?(this.isWhite?' white_king':' black_king'):'')+(this.isFocused?' focus_piece':'');
+        }
+    }
+    this.move = (moveToIndex)=>{
+        if(this.isMoveLegal(moveToIndex)){
+            setPiecesCanEat(this.isWhite);
+            if(this.isEatLegal(moveToIndex)){
+                const eatenPieceIndex = this.getEatenPieceIndex(moveToIndex);
+                board[eatenPieceIndex].isEmpty = true;
+                isWhiteTurn?blacksCount--:whitesCount--;
+                this.isAte = true;
+                removeAllCanEat();
+            }
+            let moveToPiece = board[moveToIndex];
+            let thisIndex = board.indexOf(this);
+            board[moveToIndex] = this;
+            board[thisIndex] = moveToPiece;
+            if(moveToIndex < 8||moveToIndex > 55){
+                this.isKing = true;
+            }
+            if(this.isAte && this.isCanEatCheck()){
+                isInEatingRow = true;
+                removeLegalMoves();
+                SetLegalMoves(board.indexOf(this));
+                drawBoard();
+            }
+            else{isInEatingRow = false;}
+            this.isAte = false;
+            burnPlayerPieces();
+            return true;
+        }
+        return false;
+    }
+    this.isMoveLegal = (moveToIndex)=>{
+        if(!(board[moveToIndex].isEmpty)||isIndexSquareWhite(moveToIndex)){
+            return false;
+        }
+        if(!(this.isKing)){
+            if((!this.isWhite && moveToIndex<board.indexOf(this))||(this.isWhite && moveToIndex>board.indexOf(this))){
+                return false;
+            }
+        }
+        if(this.isEatLegal(moveToIndex)){
+            return true
+        }
+        if(Math.abs(board.indexOf(this)-moveToIndex) !== 7 && Math.abs(board.indexOf(this)-moveToIndex) !== 9){
+            return false;
+        }
+        if(isInEatingRow&&!this.isEatLegal(moveToIndex)){
+            return false;
+        }
+        return true;
+    }
+    this.isEatLegal = (moveToIndex) =>{
+        let eatenPositionIndex = this.getEatenPieceIndex(moveToIndex);
+        if(eatenPositionIndex === -1){
+            return false;
+        }
+        if(board[eatenPositionIndex].isEmpty){
+            return false;
+        }
+        if((board[eatenPositionIndex].isWhite&&this.isWhite)
+        ||((!board[eatenPositionIndex].isWhite&&!this.isWhite))){
+            return false;
+        }
+        return true;
+    }
+    this.getEatenPieceIndex = (moveToIndex)=>{
+        let eatenPositionIndex;
+        switch(parseInt(moveToIndex)-parseInt(board.indexOf(this))){
+            case 14:eatenPositionIndex = board.indexOf(this) + 7;break;
+            case -14:eatenPositionIndex = board.indexOf(this) - 7;break;
+            case 18:eatenPositionIndex = board.indexOf(this) + 9;break;
+            case -18:eatenPositionIndex = board.indexOf(this)  - 9;break;
+            default:eatenPositionIndex = -1;break;
+        }
+        return eatenPositionIndex;
+    }
+}
+let index = 0
+for(let i=0;i<3;i++){
+    for(let j=0;j<4;j++){
+        if (i!==1){
+            board[index] = new Piece(true,true);
+            index++;
+            board[index] = new Piece(false,false);
+            index++;
+        }
+        else{
+            board[index] = new Piece(false,false);
+            index++;
+            board[index] = new Piece(true,true);
+            index++;
+        }
+    }
+}
+for(let i=0;i<2;i++){
+    for(let j=0;j<8;j++){
+        board[index] = new Piece(true,true);
+        index++;
+    }
+}
+for(let i=0;i<3;i++){
+    for(let j=0;j<4;j++){
+        if (i!==1){
+            board[index] = new Piece(false,true);
+            index++;
+            board[index] = new Piece(true,true);
+            index++;
+        }
+        else{
+            board[index] = new Piece(true,true);
+            index++;
+            board[index] = new Piece(false,true);
+            index++;
+        }
+    }
+}
 for(let i = 0; i<8;i++){ // drawing board
     for(let j = 0; j<8;j++){
         const square = document.createElement('div');
@@ -22,124 +167,60 @@ for(let i = 0; i<8;i++){ // drawing board
             square.className = j%2 === 0?'white_square':'black_square'; 
         else
             square.className = j%2 === 0?'black_square':'white_square';
-        board.appendChild(square);
+        HTMLboard.appendChild(square);
     }
 }
-const squares = board.children;
-for(let i = 0; i<64; i++){ // filling board
-    squares[i].id = i;
-    const piece =  document.createElement('div')
-    if (squares[i].className === "white_square"){
-        piece.className = 'piece empty_piece';
-        squares[i].appendChild(piece);
-    }
-    else{
-        if(i<24){
-            piece.className = 'piece black_piece';
-            squares[i].appendChild(piece); 
-        }
-        else if(i<40){
-            piece.className = 'piece empty_piece';
-            squares[i].appendChild(piece); 
-        }
-        else{
-            piece.className = 'piece white_piece';
-            squares[i].appendChild(piece); 
-        }
-    }
+const HTMLsquares = HTMLboard.children;
+for(let i = 0; i<64; i++){
+    HTMLsquares[i].id = i;
+    newPiece = document.createElement('div');
+    HTMLsquares[i].appendChild(newPiece);
 }
+drawBoard();
 document.body.addEventListener('click',()=>{ //cancel focuses
     if(!isInEatingRow){
-        for(square of squares){
-            square.firstChild.classList.remove('focus_piece');
-            selectedPiece = undefined;
-            removeLegalMoves();
-        }
+        cancelFocuses();
+        drawBoard();
     }
 })
-const pieces = document.querySelectorAll('.piece');
-for(piece of pieces){//select piece listener
+const HTMLpieces = document.querySelectorAll('.piece');
+for(piece of HTMLpieces){//select piece listener
     piece.addEventListener("click",(event)=>{
-        if (!event.target.classList.contains('empty_piece')&&!event.target.classList.contains('legal_move')){
+        const pieceIndex = event.target.parentElement.id;
+        if (!board[pieceIndex].isEmpty){
             event.stopPropagation();
             if(!isInEatingRow){
-                for(square of squares){
-                    square.firstChild.classList.remove('focus_piece');
-                    selectedPiece = undefined;
-                    removeLegalMoves();
-                }
-                if((isWhiteTurn&&event.currentTarget.classList.contains('white_piece'))||
-                (!isWhiteTurn&&event.currentTarget.classList.contains('black_piece'))){
-                    event.currentTarget.classList.add('focus_piece');
-                    selectedPiece = event.currentTarget;
-                    ShowLegalMoves();
-                }
+                cancelFocuses();
+                drawBoard();
             }
-        }  
+            if((isWhiteTurn&&board[pieceIndex].isWhite)||(!isWhiteTurn&&!board[pieceIndex].isWhite)){
+                board[pieceIndex].isFocused = true;
+                selectedPiece = board[pieceIndex];
+                SetLegalMoves(pieceIndex);
+                drawBoard();
+            }
+        } 
     })
 }
-for(square of squares){ // move event listener
+for(square of HTMLsquares){ // move event listener
     square.addEventListener('click',(event)=>{
-        if(selectedPiece != undefined && isMoveLegal(selectedPiece,event.currentTarget)){
-            setIfPieceCanEatbeforeTurn(isWhiteTurn);
-            let isEatMade = false;
-            let isMovedPieceKing = selectedPiece.classList.contains("white_king")||selectedPiece.classList.contains("black_king");
-            selectedPiece.classList.remove(isWhiteTurn?'white_piece':'black_piece');
-            selectedPiece.classList.remove(isWhiteTurn?'white_king':'black_king');
-            selectedPiece.classList.add('empty_piece');
-            event.currentTarget.firstChild.classList.remove('empty_piece');
-            event.currentTarget.firstChild.classList.add(isWhiteTurn?'white_piece':'black_piece');
-            if(isMovedPieceKing){
-                event.currentTarget.firstChild.classList.add(isWhiteTurn?'white_king':'black_king');
-            }
-            if(selectedPiece.classList.contains('can_eat')){
-                selectedPiece.classList.remove('can_eat')
-                event.currentTarget.firstChild.classList.add('can_eat');
-            }
-            if(isEatLegal(selectedPiece,event.currentTarget)){
-                const eatenPositionIndex = getEatenPositionIndex(selectedPiece,event.currentTarget);
-                squares[eatenPositionIndex].firstChild.classList.remove(isWhiteTurn?'black_piece':'white_piece');
-                squares[eatenPositionIndex].firstChild.classList.remove(isWhiteTurn?'white_king':'black_king');
-                squares[eatenPositionIndex].firstChild.classList.add('empty_piece');
-                isEatMade = true;
-            }
-            if(event.currentTarget.id < 8||event.currentTarget.id > 55){
-                event.currentTarget.firstChild.classList.add(isWhiteTurn?'white_king':'black_king');
-            }
-            if(isEatMade){
-                if(isPieceCanEat(event.currentTarget.firstChild)){
-                    isInEatingRow = true;
-                    selectedPiece.classList.remove('focus_piece');
-                    selectedPiece = event.currentTarget.firstChild;
-                    selectedPiece.classList.add('focus_piece');
-                    removeLegalMoves();
-                    ShowLegalMoves();
+        if(selectedPiece !== undefined){
+            if(selectedPiece.move(parseInt(event.currentTarget.id))){
+                if(!isInEatingRow){
+                    isWhiteTurn = !isWhiteTurn;
                 }
-                else{
-                    isInEatingRow = false;
+                drawBoard();
+                if(whitesCount === 0||blacksCount === 0){
+                    isGameEnded = true;
+                    modalBackground.className = 'modal_background';
+                    endGameModal.className = 'modal';
+                    endGameMessage.innerHTML = whitesCount === 0?'Black wins!!!':'White wins!!!';
                 }
-            }
-            burnPlayerPieces(isWhiteTurn,isEatMade);
-            if(!isPlayerHaveLegalMoves(isWhiteTurn)){
-                isGameEnded = true;
-                modalBackground.className = 'modal_background';
-                endGameModal.className = 'modal';
-                endGameMessage.innerHTML = (isWhiteTurn?'Black':'White') + ' wins!!!';
-            }
-            if(!isPlayerHaveLegalMoves(!isWhiteTurn)){
-                isGameEnded = true;
-                modalBackground.className = 'modal_background';
-                endGameModal.className = 'modal';
-                endGameMessage.innerHTML = (!isWhiteTurn?'Black':'White') + ' wins!!!';
-            }
-            if(!isInEatingRow){
-                    whitesTurnShower.className = isWhiteTurn?'other_player_turn':'';
-                    blacksTurnSower.className = isWhiteTurn?'':'other_player_turn';
-                isWhiteTurn = !isWhiteTurn;
             }
         }
     })
 }
+
 modalBackground.addEventListener('click',()=>{
     modalBackground.className = 'none';
     endGameModal.className = 'none';
@@ -178,110 +259,41 @@ closeButton.addEventListener('click',()=>{
 newGameButton.addEventListener('click',()=>{
     location.reload()
 })
-function isMoveLegal(piece, moveToSquare){
-    const isPieceKing = piece.classList.contains("white_king")||piece.classList.contains("black_king");
-    if(moveToSquare.className !== 'black_square' || !moveToSquare.firstChild.classList.contains('empty_piece')){
-        return false;
-    }
-    if(!isPieceKing){
-        if(piece.classList.contains('black_piece') && parseInt(moveToSquare.id)<parseInt(piece.parentElement.id)){
-            return false;
-        }
-        if(piece.classList.contains('white_piece') && parseInt(moveToSquare.id)>parseInt(piece.parentElement.id)){
-            return false;
-        }
-    }
-    if(isInEatingRow&&!isEatLegal(selectedPiece,moveToSquare)){
-        return false;
-    }
-    if(isEatLegal(piece, moveToSquare)){
-        return true;
-    }
-    if(Math.abs(parseInt(moveToSquare.id)-parseInt(piece.parentElement.id)) !== 7
-     && Math.abs(parseInt(moveToSquare.id)-parseInt(piece.parentElement.id)) !== 9){
-        return false;
-    }
-    return true;
-}
-function isEatLegal(piece, moveToSquare){
-    let eatenPositionIndex = getEatenPositionIndex(piece, moveToSquare);
-    if(eatenPositionIndex === -1){
-        return false;
-    }
-    const eatenPiece = squares[eatenPositionIndex].firstChild;
-    if(eatenPiece.classList.contains('empty_piece')){
-        return false;
-    }
-    if((eatenPiece.classList.contains('white_piece')&&piece.classList.contains('white_piece'))
-    ||(eatenPiece.classList.contains('black_piece')&&piece.classList.contains('black_piece'))){
-        return false;
-    }
-    return true;
-}
-function getEatenPositionIndex(piece, moveToSquare){
-    let eatenPositionIndex;
-    switch(parseInt(moveToSquare.id)-parseInt(piece.parentElement.id)){
-        case 14:eatenPositionIndex =parseInt(piece.parentElement.id) + 7;break;
-        case -14:eatenPositionIndex = parseInt(piece.parentElement.id) - 7;break;
-        case 18:eatenPositionIndex = parseInt(piece.parentElement.id) + 9;break;
-        case -18:eatenPositionIndex = parseInt(piece.parentElement.id)  - 9;break;
-        default:eatenPositionIndex = -1;break;
-    }
-    return eatenPositionIndex;
-}
-function isPieceCanEat(piece){
-    const optionalEatIndexes=[parseInt(piece.parentElement.id)-14,parseInt(piece.parentElement.id)+14,
-                                parseInt(piece.parentElement.id)-18,parseInt(piece.parentElement.id)+18]
+function isPieceCanEat(pieceIndex){
+    const optionalEatIndexes=[pieceIndex-14,pieceIndex+14,pieceIndex-18,parseIntpieceIndex+18]
     for(index of optionalEatIndexes){
-
-        if(index<64 && index>0 && isMoveLegal(piece,squares[index])){
+        if(index<64 && index>0 && board[pieceIndex].isMoveLegal(index)){
             return true;
         }
     }
     return false;
 }
 function isPieceCanMove(piece){
-    for(square of squares){
+    for(square of HTMLsquares){
         if(isMoveLegal(piece,square)){
             return true;
         }
     }
     return false;
 }
-function isPlayerHaveLegalMoves(isWhite){
-    allPlayerPieces = document.querySelectorAll(isWhite?'.white_piece':'.black_piece');
-    if(allPlayerPieces.length<1){return false;}
-    for(piece of allPlayerPieces){
-        if(isPieceCanMove(piece)){
-            return true;
-        }
-    }
-    return false;
-}
-function burnPlayerPieces(isWhite,isEatMade){
-    const playerPieces = document.querySelectorAll(isWhite?'.white_piece':'.black_piece');
-    if(!isEatMade&&!isInEatingRow){
-        for(piece of playerPieces){
-            if ((piece.classList.contains('can_eat'))){
-                piece.className = 'piece empty_piece';
-            }
+function burnPlayerPieces(){
+    for(piece of board){
+        if(!piece.isEmpty&&piece.isCanEat){
+            piece.isEmpty = true;
+            isWhiteTurn?whitesCount--:blacksCount--;
         }
     }
 }
-function setIfPieceCanEatbeforeTurn(isWhite){
-    const playerPieces = document.querySelectorAll(isWhite?'.white_piece':'.black_piece');
-    for(piece of pieces){piece.classList.remove('can_eat');}
-    for(piece of playerPieces){
-        if (isPieceCanEat(piece)){
-            piece.classList.add('can_eat');
-        }
+function setPiecesCanEat(isWhite){
+    for(piece of board){
+        if(piece.isWhite === isWhite&&piece.isCanEatCheck())
+            piece.isCanEat = true;
     }
 }
 function removeAllCanEat(isWhite){
-    const playerPieces = document.querySelectorAll(isWhite?'.white_piece':'.black_piece');
-    for(piece of playerPieces){
-            piece.classList.remove('can_eat');
-        }
+    for(piece of board){
+        piece.isCanEat = false;
+    }
 }
 function removeAllEvents(){
         askTieButton.className = 'on_board_button empty_button';
@@ -295,17 +307,33 @@ function removeAllEvents(){
 
     })
 }
-function ShowLegalMoves(){
-    for(square of squares){
-        if(isMoveLegal(selectedPiece,square)){
-            square.firstChild.classList.add('legal_move');
+function SetLegalMoves(movingPieceIndex){
+    for(piece of board){
+        if(board[movingPieceIndex].isMoveLegal(board.indexOf(piece))){
+            piece.isLegalMove = true;
         }
     }
 }
 function removeLegalMoves(){
-    for(let i = 0;i<64;i++){
-        if(pieces[i].classList.contains('legal_move')){
-            pieces[i].classList.remove('legal_move');
+    for(piece of board){
+        piece.isLegalMove = false;
+    }
+}
+function drawBoard(){
+    for(square of HTMLsquares){
+        square.firstChild.className = board[square.id].toHTMLclass();
+    }
+}
+function cancelFocuses(){
+    for(piece of board){
+        if(piece.isFocused){
+            piece.isFocused = false;
+            removeLegalMoves();
+            selectedPiece = undefined;
         }
     }
+}
+function isIndexSquareWhite(index){
+    whitesIndexes = [0,2,4,6,9,11,13,15,16,18,20,22,25,27,29,31,32,34,36,38,41,43,45,47,48,50,52,54,57,59,61,63]
+    return whitesIndexes.includes(index);
 }
